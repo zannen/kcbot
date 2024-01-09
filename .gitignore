@@ -1,0 +1,9 @@
+config.json
+.coverage
+*.egg-info
+htmlcov
+.*.json
+.mypy_cache
+__pycache__
+.pytest_cache
+.venv

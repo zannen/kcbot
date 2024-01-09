@@ -1,0 +1,18 @@
+{
+    "base": "SOMETOKEN",
+    "quote": "USDT",
+    "loglevel": "DEBUG",
+    "tick_len": 86400,
+    "buy": {
+        "pcnt_bump_a": 0.1,
+        "pcnt_bump_c": 0.1,
+        "order_count": 5,
+        "vol_percent": 35.0
+    },
+    "sell": {
+        "pcnt_bump_a": 0.1,
+        "pcnt_bump_c": 0.1,
+        "order_count": 5,
+        "vol_percent": 35.0
+    }
+}
