@@ -3,16 +3,38 @@
     "quote": "USDT",
     "loglevel": "DEBUG",
     "tick_len": 86400,
-    "buy": {
-        "pcnt_bump_a": 0.1,
-        "pcnt_bump_c": 0.1,
-        "order_count": 5,
-        "vol_percent": 35.0
-    },
-    "sell": {
-        "pcnt_bump_a": 0.1,
-        "pcnt_bump_c": 0.1,
-        "order_count": 5,
-        "vol_percent": 35.0
-    }
+    "strategies": [
+        {
+            "name": "careful",
+            "strategy": "dayhighlow",
+            "buy": {
+                "pcnt_bump_a": 1.0,
+                "pcnt_bump_c": 1.0,
+                "order_count": 3,
+                "vol_percent": 10.0
+            },
+            "sell": {
+                "pcnt_bump_a": 1.0,
+                "pcnt_bump_c": 1.0,
+                "order_count": 3,
+                "vol_percent": 10.0
+            }
+        },
+        {
+            "name": "close_marketmaker",
+            "strategy": "bestbidbestask",
+            "buy": {
+                "pcnt_bump_a": 0.2,
+                "pcnt_bump_c": 0.2,
+                "order_count": 2,
+                "vol_percent": 3.0
+            },
+            "sell": {
+                "pcnt_bump_a": 0.2,
+                "pcnt_bump_c": 0.2,
+                "order_count": 2,
+                "vol_percent": 3.0
+            }
+        }
+    ]
 }

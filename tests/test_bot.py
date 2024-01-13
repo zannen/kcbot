@@ -12,8 +12,8 @@ def mock_uuid4():
     return uuid.UUID("0" * 32)
 
 
-ASK = 105.01
-BID = 104.99
+ASK = 106.0
+BID = 104.0
 LOW = 100.0
 HIGH = 110.0
 
@@ -62,22 +62,44 @@ def test_bot(monkeypatch) -> None:
     monkeypatch.setattr(kcbot.bot.kcc, "User", MockUser)
     BUY_VOL_PERCENT = 50.0
     SELL_VOL_PERCENT = 50.0
-    cfg = {
+    cfg: Dict[str, Any] = {
         "base": "XYZ",
-        "buy": {
-            "pcnt_bump_a": 1.0,
-            "pcnt_bump_c": 1.0,
-            "order_count": 2,
-            "vol_percent": BUY_VOL_PERCENT,
-        },
         "loglevel": "INFO",
         "quote": "ZZZ",
-        "sell": {
-            "pcnt_bump_a": 1.0,
-            "pcnt_bump_c": 1.0,
-            "order_count": 2,
-            "vol_percent": SELL_VOL_PERCENT,
-        },
+        "strategies": [
+            {
+                "name": "careful",
+                "strategy": "dayhighlow",
+                "buy": {
+                    "pcnt_bump_a": 1.0,
+                    "pcnt_bump_c": 1.0,
+                    "order_count": 2,
+                    "vol_percent": BUY_VOL_PERCENT,
+                },
+                "sell": {
+                    "pcnt_bump_a": 1.0,
+                    "pcnt_bump_c": 1.0,
+                    "order_count": 2,
+                    "vol_percent": SELL_VOL_PERCENT,
+                },
+            },
+            {
+                "name": "close_marketmaker",
+                "strategy": "bestbidbestask",
+                "buy": {
+                    "pcnt_bump_a": 1.0,
+                    "pcnt_bump_c": 1.0,
+                    "order_count": 2,
+                    "vol_percent": 5.0,
+                },
+                "sell": {
+                    "pcnt_bump_a": 1.0,
+                    "pcnt_bump_c": 1.0,
+                    "order_count": 2,
+                    "vol_percent": 5.0,
+                },
+            },
+        ],
         "tick_len": 60,
     }
     bot = kcbot.bot.Bot(config=cfg, keys={})
@@ -93,14 +115,14 @@ def test_bot(monkeypatch) -> None:
 
     bot.get_ticker()
 
-    buys = bot.buy_orders()
+    buys = bot.buy_orders(cfg["strategies"][0])
     assert all(float(order["price"]) < LOW for order in buys)
     assert (
         sum(float(order["price"]) * float(order["size"]) for order in buys)
         < AVAIL_QUOTE * BUY_VOL_PERCENT
     )
 
-    sells = bot.sell_orders()
+    sells = bot.sell_orders(cfg["strategies"][0])
     assert all(float(order["price"]) > HIGH for order in sells)
     assert (
         sum(float(order["price"]) * float(order["size"]) for order in buys)

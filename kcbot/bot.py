@@ -22,21 +22,10 @@ class Bot:
     ):
         self.balances: Dict[str, float] = {}
         self.base = "?"
-        self.buy = {
-            "pcnt_bump_a": 0.1,
-            "pcnt_bump_c": 0.1,
-            "order_count": 0,
-            "vol_percent": 0.0,
-        }
+        self.strategies: List[Dict[str, Any]] = []
         self.loglevel = "INFO"
         self.mkt = "?-?"
         self.quote = "?"
-        self.sell = {
-            "pcnt_bump_a": 0.1,
-            "pcnt_bump_c": 0.1,
-            "order_count": 0,
-            "vol_percent": 0.0,
-        }
         self.tick_len = 86400
         self.ticker = Ticker()
 
@@ -128,8 +117,8 @@ class Bot:
             self.load_config()
             self.get_balances()
             self.get_ticker()
-            self.tick("BUY", self.buy_orders())
-            self.tick("SELL", self.sell_orders())
+            for strategy in self.strategies:
+                self.tick(strategy)
             self.logger.info("Sleeping for %d seconds", self.tick_len)
             try:
                 time.sleep(self.tick_len)
@@ -137,9 +126,13 @@ class Bot:
                 self.logger.info("Interrupted")
                 break
 
-    def buy_orders(self) -> List[Dict[str, Any]]:
+    def tick(self, strategy: Dict[str, Any]) -> None:
+        self.create_orders("BUY", self.buy_orders(strategy))
+        self.create_orders("SELL", self.sell_orders(strategy))
+
+    def buy_orders(self, strategy: Dict[str, Any]) -> List[Dict[str, Any]]:
         self.logger.info("--- Buy %s ---", self.mkt)
-        buy_order_count = int(self.buy["order_count"])
+        buy_order_count = int(strategy["buy"]["order_count"])
         if buy_order_count == 0:
             return []
         bal_quote = self.balances[self.quote]
@@ -152,13 +145,19 @@ class Bot:
             self.base,
         )
         vol_total = sum(math.sqrt(i) for i in range(1, buy_order_count + 1))
-        vol_p = self.buy["vol_percent"]
+        vol_p = strategy["buy"]["vol_percent"]
         vol_mul = bal_base / vol_total * vol_p / 100.0
-        base_price = self.ticker.low
+        if strategy["strategy"] == "dayhighlow":
+            base_price = self.ticker.low
+        elif strategy["strategy"] == "bestbidbestask":
+            base_price = self.ticker.bid
+        else:
+            raise Exception("Unknown strategy: " + strategy["strategy"])
         orders: List[Dict[str, Any]] = []
         for n in range(1, buy_order_count + 1):
             pcnt_bump_buy = (
-                self.buy["pcnt_bump_a"] * n**2 + self.buy["pcnt_bump_c"]
+                strategy["buy"]["pcnt_bump_a"] * n**2
+                + strategy["buy"]["pcnt_bump_c"]
             )
             p_buy = round(base_price * (1 - pcnt_bump_buy / 100), 4)
             if p_buy <= 0.0:
@@ -195,8 +194,8 @@ class Bot:
 
         return orders
 
-    def sell_orders(self) -> List[Dict[str, Any]]:
-        sell_order_count = int(self.sell["order_count"])
+    def sell_orders(self, strategy: Dict[str, Any]) -> List[Dict[str, Any]]:
+        sell_order_count = int(strategy["sell"]["order_count"])
         if sell_order_count == 0:
             return []
 
@@ -209,13 +208,19 @@ class Bot:
 
         self.logger.info("Balance: %10.3f %s", bal_base, self.base)
         vol_total = sum(math.sqrt(i) for i in range(1, sell_order_count + 1))
-        vol_p = self.sell["vol_percent"]
+        vol_p = strategy["sell"]["vol_percent"]
         vol_mul = bal_base / vol_total * vol_p / 100.0
-        base_price = self.ticker.high
+        if strategy["strategy"] == "dayhighlow":
+            base_price = self.ticker.high
+        elif strategy["strategy"] == "bestbidbestask":
+            base_price = self.ticker.ask
+        else:
+            raise Exception("Unknown strategy: " + strategy["strategy"])
         orders: List[Dict[str, Any]] = []
         for n in range(1, sell_order_count + 1):
             pcnt_bump_sell = (
-                self.sell["pcnt_bump_a"] * n**2 + self.sell["pcnt_bump_c"]
+                strategy["sell"]["pcnt_bump_a"] * n**2
+                + strategy["sell"]["pcnt_bump_c"]
             )
             p_sell = round(base_price * (1 + pcnt_bump_sell / 100), 4)
 
@@ -246,7 +251,7 @@ class Bot:
 
         return orders
 
-    def tick(self, side: str, orders: List[Dict[str, Any]]) -> int:
+    def create_orders(self, side: str, orders: List[Dict[str, Any]]) -> int:
         count = 0
         for i in range(0, len(orders), 5):
             batch = orders[slice(i, i + 5)]
