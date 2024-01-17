@@ -147,9 +147,19 @@ class Bot:
         vol_total = sum(math.sqrt(i) for i in range(1, buy_order_count + 1))
         vol_p = strategy["buy"]["vol_percent"]
         vol_mul = bal_base / vol_total * vol_p / 100.0
-        if strategy["strategy"] == "dayhighlow":
+        if strategy["strategy"] == "day-high-low":
             base_price = self.ticker.low
-        elif strategy["strategy"] == "bestbidbestask":
+        elif strategy["strategy"] == "bid-and-ask":
+            base_price = self.ticker.bid
+        elif strategy["strategy"] == "bid-or-ask":
+            avg = (self.ticker.high + self.ticker.low) / 2.0
+            if self.ticker.bid < avg:
+                self.logger.info(
+                    "Buy: bid < avg (%8.4f < %8.4f)",
+                    self.ticker.bid,
+                    avg,
+                )
+                return []
             base_price = self.ticker.bid
         else:
             raise Exception("Unknown strategy: " + strategy["strategy"])
@@ -210,9 +220,19 @@ class Bot:
         vol_total = sum(math.sqrt(i) for i in range(1, sell_order_count + 1))
         vol_p = strategy["sell"]["vol_percent"]
         vol_mul = bal_base / vol_total * vol_p / 100.0
-        if strategy["strategy"] == "dayhighlow":
+        if strategy["strategy"] == "day-high-low":
             base_price = self.ticker.high
-        elif strategy["strategy"] == "bestbidbestask":
+        elif strategy["strategy"] == "bid-and-ask":
+            base_price = self.ticker.ask
+        elif strategy["strategy"] == "bid-or-ask":
+            avg = (self.ticker.high + self.ticker.low) / 2.0
+            if self.ticker.ask > avg:
+                self.logger.info(
+                    "Sell: ask > avg (%8.4f < %8.4f)",
+                    self.ticker.ask,
+                    avg,
+                )
+                return []
             base_price = self.ticker.ask
         else:
             raise Exception("Unknown strategy: " + strategy["strategy"])
