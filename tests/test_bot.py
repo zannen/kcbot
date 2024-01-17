@@ -67,15 +67,13 @@ def test_bot_buy_daylow(monkeypatch) -> None:
         "Market",
         create_mock_market(base, quote, low, 104.0, 106.0, 110.0),
     )
-    avail_base = 100.0
     avail_quote = 200.0
     monkeypatch.setattr(
         kcbot.bot.kcc,
         "User",
-        create_mock_user(base, quote, avail_base, avail_quote),
+        create_mock_user(base, quote, 100.0, avail_quote),
     )
     buy_vol_percent = 50.0
-    sell_vol_percent = 50.0
     cfg: Dict[str, Any] = {
         "base": base,
         "loglevel": "INFO",
@@ -89,12 +87,6 @@ def test_bot_buy_daylow(monkeypatch) -> None:
                     "pcnt_bump_c": 1.0,
                     "order_count": 2,
                     "vol_percent": buy_vol_percent,
-                },
-                "sell": {
-                    "pcnt_bump_a": 1.0,
-                    "pcnt_bump_c": 1.0,
-                    "order_count": 2,
-                    "vol_percent": sell_vol_percent,
                 },
             },
         ],
@@ -123,13 +115,11 @@ def test_bot_sell_dayhigh(monkeypatch) -> None:
         create_mock_market(base, quote, 100.0, 104.0, 106.0, high),
     )
     avail_base = 100.0
-    avail_quote = 200.0
     monkeypatch.setattr(
         kcbot.bot.kcc,
         "User",
-        create_mock_user(base, quote, avail_base, avail_quote),
+        create_mock_user(base, quote, avail_base, 200.0),
     )
-    buy_vol_percent = 50.0
     sell_vol_percent = 50.0
     cfg: Dict[str, Any] = {
         "base": base,
@@ -139,12 +129,6 @@ def test_bot_sell_dayhigh(monkeypatch) -> None:
             {
                 "name": "careful",
                 "strategy": "day-high-low",
-                "buy": {
-                    "pcnt_bump_a": 1.0,
-                    "pcnt_bump_c": 1.0,
-                    "order_count": 2,
-                    "vol_percent": buy_vol_percent,
-                },
                 "sell": {
                     "pcnt_bump_a": 1.0,
                     "pcnt_bump_c": 1.0,
@@ -177,15 +161,13 @@ def test_bot_buy_bestbid(monkeypatch) -> None:
         "Market",
         create_mock_market(base, quote, 100.0, bid, 106.0, 110.0),
     )
-    avail_base = 100.0
     avail_quote = 200.0
     monkeypatch.setattr(
         kcbot.bot.kcc,
         "User",
-        create_mock_user(base, quote, avail_base, avail_quote),
+        create_mock_user(base, quote, 100.0, avail_quote),
     )
     buy_vol_percent = 50.0
-    sell_vol_percent = 50.0
     cfg: Dict[str, Any] = {
         "base": base,
         "loglevel": "INFO",
@@ -199,12 +181,6 @@ def test_bot_buy_bestbid(monkeypatch) -> None:
                     "pcnt_bump_c": 1.0,
                     "order_count": 2,
                     "vol_percent": buy_vol_percent,
-                },
-                "sell": {
-                    "pcnt_bump_a": 1.0,
-                    "pcnt_bump_c": 1.0,
-                    "order_count": 2,
-                    "vol_percent": sell_vol_percent,
                 },
             },
         ],
@@ -233,13 +209,11 @@ def test_bot_sell_bestask(monkeypatch) -> None:
         create_mock_market(base, quote, 100.0, 104.0, ask, 110.0),
     )
     avail_base = 100.0
-    avail_quote = 200.0
     monkeypatch.setattr(
         kcbot.bot.kcc,
         "User",
-        create_mock_user(base, quote, avail_base, avail_quote),
+        create_mock_user(base, quote, avail_base, 200.0),
     )
-    buy_vol_percent = 50.0
     sell_vol_percent = 50.0
     cfg: Dict[str, Any] = {
         "base": base,
@@ -249,12 +223,6 @@ def test_bot_sell_bestask(monkeypatch) -> None:
             {
                 "name": "careful",
                 "strategy": "bid-and-ask",
-                "buy": {
-                    "pcnt_bump_a": 1.0,
-                    "pcnt_bump_c": 1.0,
-                    "order_count": 2,
-                    "vol_percent": buy_vol_percent,
-                },
                 "sell": {
                     "pcnt_bump_a": 1.0,
                     "pcnt_bump_c": 1.0,
@@ -286,15 +254,11 @@ def test_bot_buy_avg(monkeypatch) -> None:
         "Market",
         create_mock_market(base, quote, 100.0, 108.0, 109.0, 110.0),
     )
-    avail_base = 100.0
-    avail_quote = 200.0
     monkeypatch.setattr(
         kcbot.bot.kcc,
         "User",
-        create_mock_user(base, quote, avail_base, avail_quote),
+        create_mock_user(base, quote, 100.0, 200.0),
     )
-    buy_vol_percent = 50.0
-    sell_vol_percent = 50.0
     cfg: Dict[str, Any] = {
         "base": base,
         "loglevel": "INFO",
@@ -307,13 +271,7 @@ def test_bot_buy_avg(monkeypatch) -> None:
                     "pcnt_bump_a": 1.0,
                     "pcnt_bump_c": 1.0,
                     "order_count": 2,
-                    "vol_percent": buy_vol_percent,
-                },
-                "sell": {
-                    "pcnt_bump_a": 1.0,
-                    "pcnt_bump_c": 1.0,
-                    "order_count": 2,
-                    "vol_percent": sell_vol_percent,
+                    "vol_percent": 50.0,
                 },
             },
         ],
@@ -343,8 +301,6 @@ def test_bot_sell_avg(monkeypatch) -> None:
         "User",
         create_mock_user(base, quote, avail_base, avail_quote),
     )
-    buy_vol_percent = 50.0
-    sell_vol_percent = 50.0
     cfg: Dict[str, Any] = {
         "base": base,
         "loglevel": "INFO",
@@ -353,17 +309,11 @@ def test_bot_sell_avg(monkeypatch) -> None:
             {
                 "name": "careful",
                 "strategy": "bid-and-ask",
-                "buy": {
-                    "pcnt_bump_a": 1.0,
-                    "pcnt_bump_c": 1.0,
-                    "order_count": 2,
-                    "vol_percent": buy_vol_percent,
-                },
                 "sell": {
                     "pcnt_bump_a": 1.0,
                     "pcnt_bump_c": 1.0,
                     "order_count": 2,
-                    "vol_percent": sell_vol_percent,
+                    "vol_percent": 50.0,
                 },
             },
         ],
@@ -386,15 +336,11 @@ def test_bot_nobuy_avg(monkeypatch) -> None:
         "Market",
         create_mock_market(base, quote, 100.0, 101.0, 102.0, 110.0),
     )
-    avail_base = 100.0
-    avail_quote = 200.0
     monkeypatch.setattr(
         kcbot.bot.kcc,
         "User",
-        create_mock_user(base, quote, avail_base, avail_quote),
+        create_mock_user(base, quote, 100.0, 200.0),
     )
-    buy_vol_percent = 50.0
-    sell_vol_percent = 50.0
     cfg: Dict[str, Any] = {
         "base": base,
         "loglevel": "INFO",
@@ -407,13 +353,7 @@ def test_bot_nobuy_avg(monkeypatch) -> None:
                     "pcnt_bump_a": 1.0,
                     "pcnt_bump_c": 1.0,
                     "order_count": 2,
-                    "vol_percent": buy_vol_percent,
-                },
-                "sell": {
-                    "pcnt_bump_a": 1.0,
-                    "pcnt_bump_c": 1.0,
-                    "order_count": 2,
-                    "vol_percent": sell_vol_percent,
+                    "vol_percent": 50.0,
                 },
             },
         ],
