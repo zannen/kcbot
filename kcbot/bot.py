@@ -131,8 +131,13 @@ class Bot:
                     os.linesep,
                     traceback.format_exc(),
                 )
-            self.logger.info("Sleeping for %d seconds", self.tick_len)
-            time.sleep(self.tick_len)
+
+            try:
+                self.logger.info("Sleeping for %d seconds", self.tick_len)
+                time.sleep(self.tick_len)
+            except KeyboardInterrupt:
+                self.logger.info("Interrupted")
+                break
 
     def tick(self, strategy: Dict[str, Any]) -> None:
         self.create_orders("BUY", self.buy_orders(strategy))
