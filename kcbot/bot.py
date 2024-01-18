@@ -5,7 +5,9 @@ KCBot: A simple KuCoin trading bot.
 import json
 import logging
 import math
+import os
 import time
+import traceback
 import uuid
 from typing import Any, Dict, List, Union
 
@@ -114,17 +116,23 @@ class Bot:
 
     def loop(self):
         while True:
-            self.load_config()
-            self.get_balances()
-            self.get_ticker()
-            for strategy in self.strategies:
-                self.tick(strategy)
-            self.logger.info("Sleeping for %d seconds", self.tick_len)
             try:
-                time.sleep(self.tick_len)
+                self.load_config()
+                self.get_balances()
+                self.get_ticker()
+                for strategy in self.strategies:
+                    self.tick(strategy)
             except KeyboardInterrupt:
                 self.logger.info("Interrupted")
                 break
+            except Exception:
+                self.logger.warning(
+                    "Caught exception while looping.%s%s",
+                    os.linesep,
+                    traceback.format_exc(),
+                )
+            self.logger.info("Sleeping for %d seconds", self.tick_len)
+            time.sleep(self.tick_len)
 
     def tick(self, strategy: Dict[str, Any]) -> None:
         self.create_orders("BUY", self.buy_orders(strategy))
@@ -192,7 +200,7 @@ class Bot:
             }
             orders.append(order)
             self.logger.info(
-                "Order: BUY  %9.4f %5s for %7.2f %4s (%8.3f %s/%s)",
+                "Order: BUY  %9.4f %5s for %7.2f %4s (%8.4f %s/%s)",
                 vol_buy,
                 self.base,
                 vol_buy * p_buy,
@@ -228,7 +236,7 @@ class Bot:
             avg = (self.ticker.high + self.ticker.low) / 2.0
             if self.ticker.ask > avg:
                 self.logger.info(
-                    "Sell: ask > avg (%8.4f < %8.4f)",
+                    "Sell: ask > avg (%8.4f > %8.4f)",
                     self.ticker.ask,
                     avg,
                 )
@@ -259,7 +267,7 @@ class Bot:
             }
             orders.append(order)
             self.logger.info(
-                "Order: SELL %9.4f %5s for %7.2f %4s (%8.3f %s/%s)",
+                "Order: SELL %9.4f %5s for %7.2f %4s (%8.4f %s/%s)",
                 vol_sell,
                 self.base,
                 vol_sell * p_sell,
