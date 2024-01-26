@@ -421,16 +421,6 @@ class Bot:
                 "cancelAfter": self.tick_len,
             }
             orders.append(order)
-            self.logger.info(
-                "Order: BUY  %9.4f %5s for %7.2f %4s (%8.4f %s/%s)",
-                vol_buy,
-                self.base,
-                vol_buy * p_buy,
-                self.quote,
-                p_buy,
-                self.quote,
-                self.base,
-            )
 
         return orders
 
@@ -488,16 +478,6 @@ class Bot:
                 "cancelAfter": self.tick_len,
             }
             orders.append(order)
-            self.logger.info(
-                "Order: SELL %9.4f %5s for %7.2f %4s (%8.4f %s/%s)",
-                vol_sell,
-                self.base,
-                vol_sell * p_sell,
-                self.quote,
-                p_sell,
-                self.quote,
-                self.base,
-            )
 
         return orders
 
@@ -505,11 +485,18 @@ class Bot:
         count = 0
         for i in range(0, len(orders), 5):
             batch = orders[slice(i, i + 5)]
-            # self.logger.debug(
-            #     "%s batch: %s",
-            #     side,
-            #     json.dumps(batch, indent=2, sort_keys=True),
-            # )
+            for order in batch:
+                self.logger.info(
+                    "Order: %6s %9.4f %5s for %7.2f %4s (%8.4f %s/%s)",
+                    side,
+                    float(order["size"]),
+                    self.base,
+                    float(order["size"]) * float(order["price"]),
+                    self.quote,
+                    float(order["price"]),
+                    self.quote,
+                    self.base,
+                )
             result = self.trade.create_bulk_orders(self.mkt, batch)
             # self.logger.debug(
             #     "Bulk %s order results: %s",
