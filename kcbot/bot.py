@@ -2,6 +2,7 @@
 KCBot: A simple KuCoin trading bot.
 """
 
+import datetime
 import json
 import logging
 import math
@@ -37,7 +38,10 @@ class Bot:
                 thekeys = json.load(keysf)
         else:
             thekeys = keys
-        self.init_api(thekeys)
+
+        self.market = kcc.Market(**thekeys)
+        self.trade = kcc.Trade(**thekeys)
+        self.user = kcc.User(**thekeys)
 
         logging.basicConfig(
             level=logging.INFO,
@@ -49,10 +53,215 @@ class Bot:
         )
         self.logger = logging.getLogger("KCBot")
 
-    def init_api(self, keys: Dict[str, Any]) -> None:
-        self.market = kcc.Market(**keys)
-        self.trade = kcc.Trade(**keys)
-        self.user = kcc.User(**keys)
+    def get_all(self, func, cached: bool, **kwargs) -> List[Dict[str, Any]]:
+        pages: List[Dict[str, Any]] = []
+        filename = kwargs["side"] + "_" + kwargs["status"] + ".json"
+        if cached:
+            self.logger.debug(
+                "Getting %s %s orders (cached)",
+                kwargs["status"],
+                kwargs["side"],
+            )
+            with open(filename, encoding="utf-8") as handle:
+                pages = json.load(handle)
+            return pages
+
+        self.logger.debug(
+            "Getting %s %s orders, page 1",
+            kwargs["status"],
+            kwargs["side"],
+        )
+        kwargs["currentPage"] = 1
+        kwargs["pageSize"] = 500
+        pages.append(func(**kwargs))
+        page_count = pages[0]["totalPage"]
+        if page_count > 1:
+            for page in range(2, page_count + 1):
+                kwargs["currentPage"] = page
+                self.logger.debug(
+                    "Getting %s %s orders, page %d/%d",
+                    kwargs["status"],
+                    kwargs["side"],
+                    page,
+                    page_count,
+                )
+                pages.append(func(**kwargs))
+
+        with open(filename, "w", encoding="utf-8") as handle:
+            json.dump(pages, handle, sort_keys=True, indent=2)
+
+        self.logger.debug(
+            "Got %s %s orders, total %d",
+            kwargs["status"],
+            kwargs["side"],
+            pages[0]["totalNum"],
+        )
+        return pages
+
+    def opposite_orders(
+        self,
+        cached: bool,
+        direction: str,
+    ) -> List[Dict[str, Any]]:
+        """
+        Create opposite direction orders.
+        :param direction:
+          - "resell" to add new sell orders opposite to executed buy orders
+          - "rebuy" to add new buy orders opposite to executed sell orders.
+        """
+        open_dir = "buy" if direction == "resell" else "sell"
+        close_dir = "sell" if direction == "resell" else "buy"
+        start = datetime.datetime.utcnow()
+        start -= datetime.timedelta(seconds=self.tick_len * 2)
+        start_at = int(start.timestamp() * 1000.0)
+
+        openorder_pages = self.get_all(
+            self.trade.get_order_list,
+            cached,
+            status="done",
+            symbol=self.mkt,
+            side=open_dir,
+            tradeType="TRADE",  # spot
+            type="limit",
+            startAt=start_at,
+        )
+        closeorder_active_pages = self.get_all(
+            self.trade.get_order_list,
+            cached,
+            status="active",
+            symbol=self.mkt,
+            side=close_dir,
+            tradeType="TRADE",  # spot
+            type="limit",
+            startAt=start_at,
+        )
+        closeorder_done_pages = self.get_all(
+            self.trade.get_order_list,
+            cached,
+            status="done",
+            symbol=self.mkt,
+            side=close_dir,
+            tradeType="TRADE",  # spot
+            type="limit",
+            startAt=start_at,
+        )
+
+        openorders: List[Dict[str, Any]] = []
+        for openorder_page in openorder_pages:
+            for openorder in openorder_page["items"]:
+                if openorder["dealSize"] != "0":
+                    openorders.append(openorder)
+        openorders = sorted(
+            openorders, key=lambda item: item["createdAt"], reverse=True
+        )
+
+        closeorders_active: List[Dict[str, Any]] = []
+        for closeorder_active_page in closeorder_active_pages:
+            closeorders_active.extend(closeorder_active_page["items"])
+        closeorders_active = sorted(
+            closeorders_active,
+            key=lambda item: item["createdAt"],
+            reverse=True,
+        )
+
+        closeorders_done: List[Dict[str, Any]] = []
+        for closeorder_done_page in closeorder_done_pages:
+            closeorders_done.extend(closeorder_done_page["items"])
+        closeorders_done = sorted(
+            closeorders_done, key=lambda item: item["createdAt"], reverse=True
+        )
+
+        new_orders: List[Dict[str, Any]] = []
+        for openorder in openorders:
+            price = float(openorder["price"])
+            size = float(openorder["dealSize"])
+            if close_dir == "sell":
+                # open-low-buy => close-high-sell
+                expected_close_price_min = price * 1.045
+                expected_close_price_max = price * 1.055
+            else:
+                # open-high-sell => close-low-buy
+                expected_close_price_min = price * 0.945
+                expected_close_price_max = price * 0.955
+            matching_closeorders_active = [
+                closeorder
+                for closeorder in closeorders_active
+                if abs(float(closeorder["size"]) - size) < 0.0001
+                and float(closeorder["price"]) > expected_close_price_min
+                and float(closeorder["price"]) < expected_close_price_max
+            ]
+            matching_closeorders_done = [
+                closeorder
+                for closeorder in closeorders_done
+                if abs(float(closeorder["dealSize"]) - size) < 0.0001
+                and float(closeorder["price"]) > expected_close_price_min
+                and float(closeorder["price"]) < expected_close_price_max
+            ]
+            openorder_created_at = datetime.datetime.fromtimestamp(
+                int(openorder["createdAt"] / 1000.0)
+            )
+            self.logger.debug(
+                "%s %s %10.4f at %9.4f",
+                openorder_created_at.isoformat(),
+                open_dir,
+                size,
+                price,
+            )
+            if matching_closeorders_active:
+                for mch in matching_closeorders_active:
+                    closeorder_created_at = datetime.datetime.fromtimestamp(
+                        int(mch["createdAt"] / 1000.0)
+                    )
+                    self.logger.debug(
+                        "--> %s %s %10.4f at %9.4f",
+                        closeorder_created_at.isoformat(),
+                        close_dir,
+                        float(mch["size"]),
+                        float(mch["price"]),
+                    )
+
+            if matching_closeorders_done:
+                for mch in matching_closeorders_done:
+                    closeorder_created_at = datetime.datetime.fromtimestamp(
+                        int(mch["createdAt"] / 1000.0)
+                    )
+                    self.logger.debug(
+                        "--> (%s %s %10.4f at %9.4f, done)",
+                        closeorder_created_at.isoformat(),
+                        close_dir,
+                        float(mch["dealSize"]),
+                        float(mch["price"]),
+                    )
+
+            if (
+                not matching_closeorders_active
+                and not matching_closeorders_done
+            ):
+                if close_dir == "sell":
+                    # open-low-buy => close-high-sell
+                    close_price = round(price * 1.05, 4)
+                else:
+                    # open-high-sell => close-low-buy
+                    close_price = round(price * 0.95, 4)
+                self.logger.debug(
+                    "--> SHOULD %s %10.4f at %9.4f",
+                    close_dir,
+                    size,
+                    close_price,
+                )
+                new_order = {
+                    "clientOid": str(uuid.uuid4()),
+                    "side": close_dir,
+                    "symbol": self.mkt,
+                    "type": "limit",
+                    "stp": "DC",
+                    "price": str(close_price),
+                    "size": str(size),
+                    "timeInForce": "GTC",
+                }
+                new_orders.append(new_order)
+
+        return new_orders
 
     def get_balances(self):
         accounts = self.user.get_account_list(account_type="trade")
@@ -120,6 +329,14 @@ class Bot:
                 self.load_config()
                 self.get_balances()
                 self.get_ticker()
+                self.create_orders(
+                    "REBUY",
+                    self.opposite_orders(False, "rebuy"),
+                )
+                self.create_orders(
+                    "RESELL",
+                    self.opposite_orders(False, "resell"),
+                )
                 for strategy in self.strategies:
                     self.tick(strategy)
             except KeyboardInterrupt:

@@ -6,7 +6,7 @@ from typing import Any, Dict
 
 import kcbot.bot
 
-from .conftest import create_mock_market, create_mock_user
+from .conftest import create_mock_market, create_mock_trade, create_mock_user
 
 
 def test_bot_config(monkeypatch) -> None:
@@ -406,3 +406,177 @@ def test_bot_nosell_avg(monkeypatch) -> None:
 
     sells = bot.sell_orders(cfg["strategies"][0])
     assert len(sells) == 0
+
+
+def test_bot_resell(monkeypatch) -> None:
+    mock_orders = {
+        "buy-done": [
+            {
+                "currentPage": 1,
+                "items": [
+                    {
+                        "createdAt": 1706256825125,
+                        "dealSize": "10",
+                        "price": "1.0000",
+                        "side": "buy",
+                        "size": "123.456",
+                    },
+                ],
+                "pageSize": 500,
+                "totalNum": 1,
+                "totalPage": 1,
+            }
+        ],
+        "sell-active": [
+            {
+                "currentPage": 1,
+                "items": [],
+                "pageSize": 500,
+                "totalNum": 0,
+                "totalPage": 1,
+            }
+        ],
+        "sell-done": [
+            {
+                "currentPage": 1,
+                "items": [],
+                "pageSize": 500,
+                "totalNum": 0,
+                "totalPage": 1,
+            }
+        ],
+    }
+    monkeypatch.setattr(
+        kcbot.bot.kcc,
+        "Trade",
+        create_mock_trade(mock_orders),
+    )
+    cfg: Dict[str, Any] = {
+        "loglevel": "DEBUG",
+        "tick_len": 60,
+    }
+    bot = kcbot.bot.Bot(config=cfg, keys={})
+    bot.load_config()
+    orders = bot.opposite_orders(False, "resell")
+    assert len(orders) == 1
+    order = orders[0]
+    assert order["side"] == "sell"
+    assert order["price"] == "1.05"
+
+
+def test_bot_resell_already_active(monkeypatch) -> None:
+    mock_orders = {
+        "buy-done": [
+            {
+                "currentPage": 1,
+                "items": [
+                    {
+                        "createdAt": 1700000000000,
+                        "dealSize": "10",
+                        "price": "1.0000",
+                        "side": "buy",
+                    },
+                ],
+                "pageSize": 500,
+                "totalNum": 1,
+                "totalPage": 1,
+            }
+        ],
+        "sell-active": [
+            {
+                "currentPage": 1,
+                "items": [
+                    {
+                        "createdAt": 1700000000000,
+                        "size": "10",
+                        "price": "1.0500",
+                        "side": "sell",
+                    },
+                ],
+                "pageSize": 500,
+                "totalNum": 1,
+                "totalPage": 1,
+            }
+        ],
+        "sell-done": [
+            {
+                "currentPage": 1,
+                "items": [],
+                "pageSize": 500,
+                "totalNum": 0,
+                "totalPage": 1,
+            }
+        ],
+    }
+    monkeypatch.setattr(
+        kcbot.bot.kcc,
+        "Trade",
+        create_mock_trade(mock_orders),
+    )
+    cfg: Dict[str, Any] = {
+        "loglevel": "DEBUG",
+        "tick_len": 60,
+    }
+    bot = kcbot.bot.Bot(config=cfg, keys={})
+    bot.load_config()
+    orders = bot.opposite_orders(False, "resell")
+    assert len(orders) == 0
+
+
+def test_bot_resell_already_done(monkeypatch) -> None:
+    mock_orders = {
+        "buy-done": [
+            {
+                "currentPage": 1,
+                "items": [
+                    {
+                        "createdAt": 1700000000000,
+                        "dealSize": "10",
+                        "price": "1.0000",
+                        "side": "buy",
+                    },
+                ],
+                "pageSize": 500,
+                "totalNum": 1,
+                "totalPage": 1,
+            }
+        ],
+        "sell-active": [
+            {
+                "currentPage": 1,
+                "items": [],
+                "pageSize": 500,
+                "totalNum": 0,
+                "totalPage": 1,
+            }
+        ],
+        "sell-done": [
+            {
+                "currentPage": 1,
+                "items": [
+                    {
+                        "createdAt": 1700000000000,
+                        "dealSize": "10",
+                        "price": "1.0500",
+                        "side": "sell",
+                    },
+                ],
+                "pageSize": 500,
+                "totalNum": 1,
+                "totalPage": 1,
+            }
+        ],
+    }
+    monkeypatch.setattr(
+        kcbot.bot.kcc,
+        "Trade",
+        create_mock_trade(mock_orders),
+    )
+    cfg: Dict[str, Any] = {
+        "loglevel": "DEBUG",
+        "tick_len": 60,
+    }
+    bot = kcbot.bot.Bot(config=cfg, keys={})
+    bot.load_config()
+    orders = bot.opposite_orders(False, "resell")
+    assert len(orders) == 0

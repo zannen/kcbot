@@ -26,11 +26,13 @@ def create_mock_market(
     return MockMarket
 
 
-# def create_mock_trade():
-#     class MockTrade:
-#         pass
+def create_mock_trade(order_lists: Dict[str, List[Dict[str, Any]]]):
+    class MockTrade:
+        def get_order_list(self, **kwargs) -> Dict[str, Any]:
+            order_list = order_lists[kwargs["side"] + "-" + kwargs["status"]]
+            return order_list[kwargs["currentPage"] - 1]
 
-#     return MockTrade
+    return MockTrade
 
 
 def create_mock_user(
