@@ -47,6 +47,6 @@ class Ticker:
         Return a nicely formatted information line.
         """
         return (
-            f"{self.ask:9.3f}, {self.bid:9.3f}, "
-            f"{self.high:9.3f}, {self.low:9.3f}"
+            f"{self.ask:9.4f}, {self.bid:9.4f}, "
+            f"{self.high:9.4f}, {self.low:9.4f}"
         )
